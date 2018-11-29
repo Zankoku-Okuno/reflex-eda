@@ -1,0 +1,48 @@
+-- This file has been generated from package.yaml by hpack version 0.28.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 5cd29c0ad6a2cb73f26129223ce623d9496b78da0959ba1069207b4e0b01fa0e
+
+name:           reflex-eda-gtk
+version:        0.0.0
+description:    Please see the README on GitHub at <https://github.com/Zankoku-Okuno/reflex-eda-gtk#readme>
+homepage:       https://github.com/Zankoku-Okuno/reflex-eda-gtk#readme
+bug-reports:    https://github.com/Zankoku-Okuno/reflex-eda-gtk/issues
+author:         Okuno Zankoku
+maintainer:     zankoku.okuno@gmail.com
+copyright:      Okuno Zankoku
+license:        BSD3
+build-type:     Simple
+cabal-version:  >= 1.10
+
+source-repository head
+  type: git
+  location: https://github.com/Zankoku-Okuno/reflex-eda-gtk
+
+executable reflex-eda-gtk
+  main-is: Main.hs
+  other-modules:
+      Css
+      Gui.Netlist
+      Gui.Source
+      Util.Dom
+      Paths_reflex_eda_gtk
+  hs-source-dirs:
+      app
+  default-extensions: OverloadedStrings PatternSynonyms ViewPatterns RecordWildCards TupleSections LambdaCase RecursiveDo FlexibleContexts ScopedTypeVariables DataKinds TypeOperators TypeApplications DeriveFunctor
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , data-default
+    , ghcjs-dom
+    , lens ==4.*
+    , neat-interpolation
+    , reflex ==0.5.*
+    , reflex-dom ==0.4.*
+    , reflex-dom-contrib ==0.5.1.0
+    , reflex-eda-common
+    , text ==1.2.*
+    , these
+  default-language: Haskell2010

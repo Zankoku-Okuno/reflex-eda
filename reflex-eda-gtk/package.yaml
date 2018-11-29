@@ -1,0 +1,60 @@
+name:                reflex-eda-gtk
+version:             0.0.0
+github:              "Zankoku-Okuno/reflex-eda-gtk"
+license:             BSD3
+author:              "Okuno Zankoku"
+maintainer:          "zankoku.okuno@gmail.com"
+copyright:           "Okuno Zankoku"
+
+# extra-source-files:
+# - README.md
+# - ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/Zankoku-Okuno/reflex-eda-gtk#readme>
+
+dependencies:
+- base >=4.7 && <5
+- containers
+- data-default
+- neat-interpolation
+- reflex ==0.5.*
+- reflex-dom ==0.4.*
+- reflex-dom-contrib ==0.5.1.0
+- text ==1.2.*
+- these
+- ghcjs-dom
+- lens ==4.*
+- reflex-eda-common
+
+default-extensions:
+- OverloadedStrings
+- PatternSynonyms
+- ViewPatterns
+- RecordWildCards
+- TupleSections
+- LambdaCase
+- RecursiveDo
+- FlexibleContexts
+- ScopedTypeVariables
+- DataKinds
+- TypeOperators
+- TypeApplications
+- DeriveFunctor
+
+executables:
+  reflex-eda-gtk:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    # dependencies:
+    # - reflex-eda-gtk
