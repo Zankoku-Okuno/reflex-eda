@@ -8,6 +8,6 @@ type ComponentName = Text
 type InstanceName = Text
 type NetName = Text
 type PinName = Text
-type PinNo = Int
+type PinNo = Int -- one-indexed
 
 type PinId = (ComponentName, PinNo)

@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 40f06b9b838de0219157d9df5b3e14ffc81498e5684ff8037ac24390af513b7f
+-- hash: c4d8fac6da5babffd9c3ed94b48e66c2aa64d6170bbbabb4097ab713110277c4
 
 name:           reflex-eda-common
 version:        0.0.0
@@ -23,7 +23,9 @@ source-repository head
 library
   exposed-modules:
       Build
+      Data.Bimaybe
       Hasktronics
+      Hasktronics.Connectome
       Hasktronics.Expr
       Hasktronics.Netlist
       Hasktronics.Types
@@ -37,6 +39,7 @@ library
       base >=4.7 && <5
     , containers
     , data-default
+    , monoidal-containers
     , mtl
     , text ==1.2.*
     , these

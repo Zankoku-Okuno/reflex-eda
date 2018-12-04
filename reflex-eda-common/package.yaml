@@ -23,6 +23,7 @@ dependencies:
 - base >=4.7 && <5
 - containers
 - data-default
+- monoidal-containers
 - mtl
 - text ==1.2.*
 - these

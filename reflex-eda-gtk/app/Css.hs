@@ -1,5 +1,10 @@
 {-# LANGUAGE QuasiQuotes #-}
-module Css (layout, theme_dark, theme_wrong) where
+module Css
+    ( Theme
+    , layout, theme
+    , theme_dark, theme_wrong
+    , connectome
+    ) where
 
 import Data.Text (Text)
 import NeatInterpolation
@@ -66,10 +71,39 @@ button.compile {
 textarea.compile {
     font-family: monospace;
 }
+
+/* Aspect Ratio using CSS from: http://www.mademyday.de/css-height-equals-width-with-pure-css.html */
+.aspect-9-16 {
+    position: relative;
+}
+.aspect-9-16:before {
+    content: "";
+    display: block;
+    padding-top: 56.25%;
+}
+.aspect-9-16 > * {
+    position: absolute;
+    top: 0px;
+}
+
+.connectome {
+    width: calc(96% - 2px);
+    border: thin rgba(0,0,0,0) solid;
+    overflow: auto;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+.connectome > * {
+    flex: 0 0 auto;
+}
 |]
 
-theme :: ((Text, Text, Text), (Text, Text), (Text, Text, Text)) -> Text
-theme ((bgndHeavy, bgnd, bgndChill), (ctnt, ctntChill), (accent, activate, warning)) = [text|
+type Theme = ((Text, Text, Text), (Text, Text), (Text, Text, Text))
+
+theme :: Theme -> Text
+theme ((bgndHeavy, bgnd, bgndChill), (ctnt, ctntBright), (accent, activate, warning)) = [text|
 body {
     background: $bgnd;
     color: $ctnt
@@ -82,11 +116,11 @@ ul.tabs > li {
     color: $bgndChill;
 }
 ul.tabs > li.active {
-    border-color: $ctntChill;
-    color: $ctntChill;
+    border-color: $ctntBright;
+    color: $ctntBright;
 }
 div.tab {
-    border: thin $ctntChill solid;
+    border: thin $ctntBright solid;
     border-radius: $borderRadius;
     border-top-left-radius: 0px;
 }
@@ -94,10 +128,41 @@ button.compile {
     border-color: $activate;
     color: $activate;
 }
+
+#netlist {
+    border-color: $bgndHeavy;
+}
 |]
 
-theme_dark = theme ((base03, base02, base01), (base0, base1), (blue, green, orange))
-theme_wrong = theme ((base3, base2, base1), (base01, base00), (blue, magenta, orange))
+theme_dark, theme_wrong :: Theme
+theme_dark = ((base03, base02, base01), (base0, base1), (blue, green, orange))
+theme_wrong = ((base3, base2, base1), (base01, base00), (blue, magenta, orange))
+
+
+connectome :: Theme -> Text
+connectome ((bgndHeavy, bgnd, bgndChill), (ctnt, ctntBright), (accent, activate, warning)) = [text|
+.connectome svg {
+    stroke: $ctnt;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.connectome .components {
+    stroke-width: 7;
+}
+.connectome .components .pins {
+    stroke-width: 5;
+}
+.connectome .nets {
+    stroke-width: 2.5;
+}
+.connectome .components > [data-instance-name]:hover,
+.connectome .nets > [data-net-name]:hover {
+    stroke: $accent;
+}
+|]
+
 
 borderRadius = "5px"
 

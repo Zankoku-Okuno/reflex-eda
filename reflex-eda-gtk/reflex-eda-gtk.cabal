@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5cd29c0ad6a2cb73f26129223ce623d9496b78da0959ba1069207b4e0b01fa0e
+-- hash: c49b397adeed52e58fca2b2608021189fd501cb06f9f3ce499c055ba176ea8cb
 
 name:           reflex-eda-gtk
 version:        0.0.0
@@ -24,6 +24,7 @@ executable reflex-eda-gtk
   main-is: Main.hs
   other-modules:
       Css
+      Gui.Connectome
       Gui.Netlist
       Gui.Source
       Util.Dom

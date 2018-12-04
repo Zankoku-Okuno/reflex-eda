@@ -16,6 +16,9 @@ tshow = T.pack . show
 (<&>) = flip (<$>)
 
 
+type AList k v = [(k, v)]
+
+
 either2these :: Either a b -> These a b
 either2these (Left l) = This l
 either2these (Right r) = That r

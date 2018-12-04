@@ -1,41 +1,41 @@
 module Build where
 
 import Data.Default
+import Data.Maybe
 import Data.These
+import Data.Bimaybe
 import Data.Bifunctor
 import Util
 
 
-data BuildBuffer a b
-    = Zero
-    | Err a
-    | Working (Maybe a, b) a
-    | Good (Maybe a) b
+type BuildBuffer a b = Bimaybe a (Maybe a, b)
+
+-- data BuildBuffer a b
+--     = Zero
+--     | Err a
+--     | Working (Maybe a, b) a
+--     | Good (Maybe a) b
 
 isBuild :: BuildBuffer a b -> Bool
-isBuild Zero = False
-isBuild _ = True
+isBuild = isJust . extractRight
 
-newestBuild :: BuildBuffer a b -> Maybe (These a b)
-newestBuild Zero = Nothing
-newestBuild (Err err) = Just $ This err
-newestBuild (Working _ err) = Just $ This err
-newestBuild (Good (Just warn) new) = Just $ These warn new
-newestBuild (Good Nothing new) = Just $ That new
+newestBuild :: BuildBuffer a b -> Bimaybe a b
+newestBuild Neither = Neither
+newestBuild (Lust err) = Lust err
+newestBuild (Rust (Nothing, val)) = Rust val
+newestBuild (Rust (Just warns, val)) = Both warns val
+newestBuild (Both err _) = Lust err
 
-prevGoodBuild :: BuildBuffer a b -> Maybe (These a b)
-prevGoodBuild Zero = Nothing
-prevGoodBuild (Err _) = Nothing
-prevGoodBuild (Working (Just warn, old) _) = Just $ These warn old
-prevGoodBuild (Working (Nothing, old) _) = Just $ That old
-prevGoodBuild (Good _ _) = Nothing
-
+prevGoodBuild :: BuildBuffer a b -> Maybe (Maybe a, b)
+prevGoodBuild = extractRight
 
 pushBuild :: These a b -> BuildBuffer a b -> BuildBuffer a b
-pushBuild (This err) old = case old of
-    Zero -> Err err
-    Err _ -> Err err
-    Working old _ -> Working old err
-    Good warn old -> Working (warn, old) err
-pushBuild (That new) _ = Good Nothing new
-pushBuild (These warn new) _ = Good (Just warn) new
+pushBuild (This err) (toMaybePair -> (_, old)) = fromMaybePair (Just err, old)
+pushBuild (That val) _ = Rust (Nothing, val)
+pushBuild (These warn val) _ = Rust (Just warn, val)
+
+-- instance Functor (BuildBuffer a) where
+--     fmap f Zero = Zero
+--     fmap f (Err err) = Err err
+--     fmap f (Working (warn, stale) err) = Working (warn, (f stale)) err
+--     fmap f (Good warn val) = Good warn (f val)
