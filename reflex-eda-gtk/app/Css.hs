@@ -98,6 +98,10 @@ textarea.compile {
 .connectome > * {
     flex: 0 0 auto;
 }
+.group-toggles li {
+    display: inline-block;
+    list-style-type: none;
+}
 |]
 
 type Theme = ((Text, Text, Text), (Text, Text), (Text, Text, Text))

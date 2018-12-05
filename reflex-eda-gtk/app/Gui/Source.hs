@@ -36,7 +36,7 @@ content evGo = do
 , Connect "daisy" [("bon soir 1", 2), ("bon soir 2", 2)]
 , Connect "pwr" [("bon soir 3", 2)]
 , DefGroup (Right "U") (Just "#3B1")
-, Group "U" (Right ["bon soir 1", "U1", "U2", "U3"])
+, Group "U" (Right ["bon soir 1", "U1", "U2", "U3", "bon soir 2"])
 , DefGroup (Left "Vcc") (Just "#D31")
 , Group "Vcc" (Left ["pwr"])
 ]

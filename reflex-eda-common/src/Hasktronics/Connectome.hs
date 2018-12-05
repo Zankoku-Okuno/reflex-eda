@@ -39,6 +39,27 @@ data Connectome = Connectome
 type PartLoc = (ComponentInfo, (SegmentNo, SegmentNo), Maybe GroupName)
 type NetLoc = ([SegmentNo], Maybe GroupName)
 
+
+filterConnectome :: Connectome -> ([GroupName], Bool) -> ([GroupName], Bool) -> Connectome
+filterConnectome c0 (partGNames, withNoGParts) (netGNames, withNoGNets) =
+    let (_, partGroups0, noGParts0) = partGroups c0
+        (_, netGroups0, noGNets0) = netGroups c0
+    in Connectome
+        { partGroups = ( partGNames
+                       , subsetKeys partGNames partGroups0
+                       , if withNoGParts then noGParts0 else []
+                       )
+        , partColors = partColors c0
+        , netGroups = ( netGNames
+                       , subsetKeys netGNames netGroups0
+                       , if withNoGNets then noGNets0 else []
+                       )
+        , netColors = netColors c0
+        }
+    where
+    subsetKeys ks = MMap.filterWithKey (\k _ -> k `elem` ks)
+
+
 build :: Netlist -> Expr -> These [Text] Connectome
 build netlist expr = case runWriter $ evalCmds netlist expr of
     (val, []) -> That val
