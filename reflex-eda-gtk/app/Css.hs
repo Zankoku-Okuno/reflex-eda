@@ -157,7 +157,7 @@ connectome ((bgndHeavy, bgnd, bgndChill), (ctnt, ctntBright), (accent, activate,
 .connectome .nets {
     stroke-width: 2.5;
 }
-.connectome .components > [data-instance-name]:hover,
+.connectome .components > [data-part-name]:hover,
 .connectome .nets > [data-net-name]:hover {
     stroke: $accent;
 }

@@ -5,9 +5,12 @@ import qualified Data.Text as T
 
 
 type ComponentName = Text
-type InstanceName = Text
+type PartName = Text
 type NetName = Text
 type PinName = Text
 type PinNo = Int -- one-indexed
 
 type PinId = (ComponentName, PinNo)
+
+type GroupName = Text
+type Color = Text

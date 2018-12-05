@@ -1,8 +1,8 @@
 module Hasktronics.Connectome where
 
 import Hasktronics.Types
-import Hasktronics.Expr
-import Hasktronics.Netlist
+import Hasktronics.Expr as Expr
+import Hasktronics.Netlist as Netlist
 import Util
 
 import Data.Maybe
@@ -26,16 +26,18 @@ import Control.Monad.State
 type SegmentNo = Double
 type NormalLoc = Double
 
-type InstanceGroups = (MonoidalMap Text [Instance], [Instance])
-type NetGroups = (MonoidalMap Text [NetName], [NetName])
+type PartGroups = ([GroupName], MonoidalMap GroupName [Part], [Part])
+type NetGroups = ([GroupName], MonoidalMap GroupName [Net], [Net])
+
 data Connectome = Connectome
-    { instanceGroups :: InstanceGroups
-    , segmentCount :: Double
-    , instanceLocs :: AList InstanceName (ComponentInfo, (SegmentNo, SegmentNo))
-    , netPaths :: Map NetName [SegmentNo]
-    , normal :: SegmentNo -> NormalLoc
+    { partGroups :: PartGroups
+    , partColors :: Map GroupName Color
+    , netGroups :: NetGroups
+    , netColors :: Map GroupName Color
     }
 
+type PartLoc = (ComponentInfo, (SegmentNo, SegmentNo), Maybe GroupName)
+type NetLoc = ([SegmentNo], Maybe GroupName)
 
 build :: Netlist -> Expr -> These [Text] Connectome
 build netlist expr = case runWriter $ evalCmds netlist expr of
@@ -44,57 +46,105 @@ build netlist expr = case runWriter $ evalCmds netlist expr of
 
 evalCmds :: Netlist -> [Cmd] -> Writer [Text] Connectome
 evalCmds netlist cmds = do
-    let instanceGroups0 = (MMap.empty, Map.elems $ instances netlist)
-    instanceGroups <- execStateT (runReaderT (evalConnectomeCmd `traverse` cmds) netlist) instanceGroups0
+    let groupNames0 = (([], Map.empty), ([], Map.empty))
+    ((netGNames, netColors), (partGNames, partColors)) <-
+        execStateT (evalDefCmd `traverse` cmds) groupNames0
+    let partGroups0 = (partGNames, MMap.empty, Map.elems $ parts netlist)
+        netGroups0 = (netGNames, MMap.empty, Map.elems $ nets netlist)
+        groups0 = (netGroups0, partGroups0)
+    (netGroups, partGroups) <- execStateT (runReaderT (evalAppendCmd `traverse` cmds) netlist) groups0
     -- FIXME down here, order component locations by group
-    let segmentCount = calcSegmentCount netlist
-        normal = (/ segmentCount)
-        instanceLocs = calcInstanceLocs netlist instanceGroups
-    netPaths <- calcNetPaths netlist instanceLocs
     pure Connectome{..}
 
-evalConnectomeCmd :: Cmd -> ReaderT Netlist (StateT InstanceGroups (Writer [Text])) ()
--- evalConnectomeCmd (Group groupName (Left netNames)) = do -- TODO
-evalConnectomeCmd (Group groupName (Right instNames)) = do
-    instances <- asks instances
-    let resolve instName = case Map.lookup instName instances of
-            Nothing -> Left instName
-            Just inst -> Right inst
-    let (unknown, knownInstances) = partitionEithers $ resolve <$> instNames
-    forM_ unknown $ \instName -> do
-        tell1 $ mconcat ["Unknown instance ", instName, " cannot be grouped."]
-    (groups, unassigned) <- get
-    let (okInsts, alreadyAssigned) = partition check knownInstances
-        check (fst -> instName) = instName `elem` (fst <$> unassigned)
-    forM_ alreadyAssigned $ \(instName, _) -> do
-        tell1 $ mconcat ["Component ", instName, " already assigned to a group."]
-    let unassigned' = filter (\(name, _) -> name `notElem` (fst <$> okInsts)) unassigned
-        groups' = groups <> MMap.singleton groupName okInsts
-    put (groups', unassigned')
-evalConnectomeCmd _ = pure ()
+evalDefCmd :: Cmd -> StateT (([GroupName], Map GroupName Color), ([GroupName], Map GroupName Color)) (Writer [Text]) ()
+evalDefCmd (DefGroup (Left name) color) = do
+    (names, colors) <- gets fst
+    if name `elem` names
+    then tell1 $ mconcat ["Net group already defined: ", name]
+    else do
+        let names' = names ++ [name]
+            colors' = maybe colors (\x -> Map.insert name x colors) color
+        modify $ first $ const (names', colors')
+evalDefCmd (DefGroup (Right name) color) = do
+    (names, colors) <- gets snd
+    if name `elem` names
+    then tell1 $ mconcat ["Part group already defined: ", name]
+    else do
+        let names' = names ++ [name]
+            colors' = maybe colors (\x -> Map.insert name x colors) color
+        modify $ second $ const (names', colors')
+evalDefCmd _ = pure ()
+
+evalAppendCmd :: Cmd -> ReaderT Netlist (StateT (NetGroups, PartGroups) (Writer [Text])) ()
+evalAppendCmd (Group groupName (Left netNames)) = do
+    nets <- asks nets
+    forM_ netNames $ \netName -> do
+        (groupNames, groups, unassigned) <- gets fst
+        case (Map.lookup netName nets, lookup netName unassigned, find (== groupName) groupNames) of
+            (Nothing, _, _) -> tell1 $ mconcat ["Unknown net ", netName, " cannot be grouped."]
+            (Just _, Nothing, _) -> tell1 $ mconcat ["Net ", netName, " already assigned to a group."]
+            (Just _, Just _, Nothing) -> tell1 $ mconcat ["Unknown group: ", groupName]
+            (Just net, Just _, Just _) -> do
+                let unassigned' = filter ((/= netName) . fst) unassigned
+                    groups' = groups <> MMap.singleton groupName [net]
+                modify $ first $ const (groupNames, groups', unassigned')
+evalAppendCmd (Group groupName (Right partNames)) = do
+    parts <- asks parts
+    forM_ partNames $ \partName -> do
+        (groupNames, groups, unassigned) <- gets snd
+        case (Map.lookup partName parts, lookup partName unassigned, find (== groupName) groupNames) of
+            (Nothing, _, _) -> tell1 $ mconcat ["Unknown part ", partName, " cannot be grouped."]
+            (Just _, Nothing, _) -> tell1 $ mconcat ["Component ", partName, " already assigned to a group."]
+            (Just _, Just _, Nothing) -> tell1 $ mconcat ["Unknown group: ", groupName]
+            (Just part, Just _, Just _) -> do
+                let unassigned' = filter ((/= partName) . fst) unassigned
+                    groups' = groups <> MMap.singleton groupName [part]
+                modify $ second $ const (groupNames, groups', unassigned')
+evalAppendCmd _ = pure ()
 
 
-calcSegmentCount :: Netlist -> Double
-calcSegmentCount Netlist{..} =
-    let componentCount = Map.size instances
-        pinCount = Map.foldl' (\acc (_, ComponentInfo{..}) -> acc + length pins) 0 instances
+segmentCount :: Connectome -> Double
+segmentCount Connectome{partGroups = (_, grouped, ungrouped)} =
+    let componentCount = sum (MMap.map length grouped) + length ungrouped
+        numsPins = (length . Netlist.pins . snd <$>)
+        groupPinCounts = MMap.map (sum . numsPins) grouped
+        nogroupPinCounts = numsPins ungrouped
+        pinCount = sum groupPinCounts + sum nogroupPinCounts
     in fromIntegral $ componentCount + pinCount
 
-calcInstanceLocs :: Netlist -> InstanceGroups -> AList ComponentName (ComponentInfo, (SegmentNo, SegmentNo))
-calcInstanceLocs Netlist{..} (assigned, unassigned) = runningTotal 0.0 insts
+normal :: Connectome -> (Double -> Double)
+normal connectome = (/ segmentCount connectome)
+
+partLocs :: Connectome -> Map PartName PartLoc
+partLocs Connectome{..} = Map.fromList $ runningTotal 0.0 parts
     where
-    insts = (mconcat $ MMap.elems assigned) ++ unassigned
+    (_, assigned, unassigned) = partGroups
+    -- FIXME order groups according to list
+    parts = (mconcat $ MMap.elems assigned) ++ unassigned
+    findGroup partName = reverseLookup partName $ MMap.map (fst <$>) assigned
     runningTotal soFar [] = []
-    runningTotal soFar ((instName, cInfo@ComponentInfo{..}):xs) =
+    runningTotal soFar ((partName, cInfo@ComponentInfo{..}):xs) =
         let start = soFar
             end = start + fromIntegral (length pins)
-        in (instName, (cInfo, (start, end))) : runningTotal (end + 1.0) xs
+        in (partName, (cInfo, (start, end), findGroup partName)) : runningTotal (end + 1.0) xs
 
-calcNetPaths :: Netlist -> AList ComponentName (ComponentInfo, (SegmentNo, SegmentNo))
-             -> Writer [Text] (Map NetName [Double])
-calcNetPaths Netlist{..} instanceLocs = pure $ Map.map sort $ Map.mapWithKey f nets
+netPaths :: Connectome -> Map NetName NetLoc
+netPaths c = Map.fromList $ f <$> nets
     where
-    f netName pinIds = do
-        (component, fromIntegral -> pinNo) <- pinIds
-        (_, (start, _)) <- maybeToList $ lookup component instanceLocs -- FIXME emit warning on Nothing
-        pure $ start + (pinNo - 1.0)
+    (_, assigned, unassigned) = netGroups c
+    nets = (mconcat $ MMap.elems assigned) ++ unassigned :: [Net]
+    findGroup netName = reverseLookup netName $ MMap.map (fst <$>) assigned
+    f :: Net -> (NetName, NetLoc)
+    f (netName, pinIds) = (netName, (sort points, findGroup netName))
+        where
+        points = do
+            (component, fromIntegral -> pinNo) <- pinIds
+            (_, (start, _), _) <- maybeToList $ Map.lookup component (partLocs c) -- NOTE compiling the netlist already issues a warning
+            pure $ start + (pinNo - 1.0)
+
+
+reverseLookup :: Eq a => a -> MonoidalMap k [a] -> Maybe k
+reverseLookup x m = lookup x . concat $ mapSwap <$> MMap.toList m
+    where
+    mapSwap :: (k, [a]) -> [(a, k)]
+    mapSwap (k, as) = (, k) <$> as

@@ -2,7 +2,7 @@ module Hasktronics.Netlist
     ( ComponentInfo(..)
     , ComponentLibrary
     , Netlist(..)
-    , Instance
+    , Part, Net
     , build
     ) where
 
@@ -33,11 +33,12 @@ data ComponentInfo = ComponentInfo
 
 type ComponentLibrary = Map ComponentName ComponentInfo
 
-type Instance = (InstanceName, ComponentInfo)
+type Part = (PartName, ComponentInfo)
+type Net = (NetName, [PinId])
 
 data Netlist = Netlist
-    { instances :: Map InstanceName Instance
-    , nets :: Map NetName [PinId]
+    { parts :: Map PartName Part
+    , nets :: Map NetName Net
     }
     deriving (Show)
 
@@ -50,8 +51,8 @@ build cmds = case runWriter (evalCmds cmds) of
 evalCmds :: [Cmd] -> Writer [Text] (ComponentLibrary, Netlist)
 evalCmds cmds = do
     lib <- execStateT (evalLibCmd `traverse` cmds) lib0
-    (_, instances) <- execStateT (evalComponentCmd `traverse` cmds) (lib, netlist0)
-    (_, netlist) <- execStateT (evalNetCmd `traverse` cmds) (lib, instances)
+    (_, parts) <- execStateT (evalComponentCmd `traverse` cmds) (lib, netlist0)
+    (_, netlist) <- execStateT (evalNetCmd `traverse` cmds) (lib, parts)
     pure (lib, netlist)
     where
     lib0 = Map.empty
@@ -64,25 +65,28 @@ evalLibCmd (DefComponent{..}) = gets (Map.lookup name) >>= \case
 evalLibCmd _ = pure ()
 
 evalComponentCmd :: Cmd -> StateT (ComponentLibrary, Netlist) (Writer [Text]) ()
-evalComponentCmd (UseComponent instName compName) = do
+evalComponentCmd (UseComponent partName compName) = do
     (lib, Netlist{..}) <- get
-    case (Map.lookup compName lib, Map.lookup instName instances) of
+    case (Map.lookup compName lib, Map.lookup partName parts) of
         (Just comp, Nothing) -> modify $ second $ \nl ->
-            nl{instances = Map.insert instName (instName, comp) instances}
+            nl{parts = Map.insert partName (partName, comp) parts}
         (Nothing, _) -> tell1 $ mconcat ["No definition for component: ", tshow compName, "."]
-        (_, Just _) -> tell1 $ mconcat ["Component already defined: ", tshow instName, "."]
+        (_, Just _) -> tell1 $ mconcat ["Component already defined: ", tshow partName, "."]
 evalComponentCmd _ = pure ()
 
 evalNetCmd :: Cmd -> StateT (ComponentLibrary, Netlist) (Writer [Text]) ()
 evalNetCmd (Connect netName pins) = do
     Netlist{..} <- gets snd
-    let (okPins, badPins) = partition (checkPinId instances) pins
+    let (okPins, badPins) = partition (checkPinId parts) pins
     tell $ warnPin <$> badPins
     modify $ second $ \nl ->
-        nl{nets = Map.alter (Just . maybe okPins (++ okPins)) netName nets}
+        nl{nets = Map.alter (appendPins (netName, okPins)) netName nets}
     where
-    checkPinId instances (instName, pinNo) = case Map.lookup instName instances of
+    checkPinId parts (partName, pinNo) = case Map.lookup partName parts of
         Just (_, ComponentInfo{..}) -> 1 <= pinNo && pinNo <= length pins
         Nothing -> False
     warnPin (compName, pinNo) = mconcat ["Undefined pin: `", compName, ".", tshow pinNo, "`"]
+    appendPins :: Net -> Maybe Net -> Maybe Net
+    appendPins (netName, newPins) Nothing = Just (netName, newPins)
+    appendPins (netName, newPins) (Just (_, oldPins)) = Just (netName, oldPins ++ newPins)
 evalNetCmd _ = pure ()

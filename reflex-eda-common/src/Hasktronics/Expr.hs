@@ -18,9 +18,10 @@ data Cmd
         { name :: ComponentName
         , pins :: [PinName]
         }
-    | UseComponent InstanceName ComponentName
+    | UseComponent PartName ComponentName
     | Connect NetName [PinId]
-    | Group Text (Either [NetName] [ComponentName])
+    | DefGroup (Either Text Text) (Maybe Color)
+    | Group Text (Either [NetName] [PartName])
     deriving (Read, Show)
 
 parse :: Text -> These [Text] Expr

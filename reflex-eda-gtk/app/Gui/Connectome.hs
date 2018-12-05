@@ -46,27 +46,45 @@ renderErrors errs = el "p" $ do
     text $ tshow errs -- FIXME show a list
 
 renderValue :: forall t m. MonadWidget t m => Connectome -> m ()
-renderValue val@Connectome{..} = do
+renderValue c@Connectome{..} = do
+    el "style" mkStyle
     elAttr "div" ("class" =: "connectome aspect-9-16") $ do
         svgAttr "svg" ("height" =: tshow (2*(oR + margin))
-                    <> "width"  =: tshow (2*(oR + margin))) $ 
+                    <> "width"  =: tshow (2*(oR + margin))) $
             svgAttr "g" ("transform" =: svgTranslate margin margin) $ do
                 svgAttr "g" ("class" =: "nets" <> "transform" =: svgTranslate oR oR) $ do
-                    forM_ (Map.toList netPaths) $ netLayer
+                    sequence_ $ Map.mapWithKey netLayer (netPaths c)
                 svgClass "g" "components" $ do
-                    forM_ instanceLocs componentLayer
+                    sequence_ $ Map.mapWithKey componentLayer (partLocs c)
     where
     pinSeparation = 10.0
-    oR = max 100.0 $ pinSeparation * segmentCount / tau
+    oR = max 100.0 $ pinSeparation * segmentCount c / tau
     iR = oR - pinLength
     margin = 20.0
     pinLength = 17.0
-    componentLayer :: MonadWidget t m => (InstanceName, (ComponentInfo, (SegmentNo, SegmentNo))) -> m ()
-    componentLayer (instName, (cInfo, (start, end))) = svgAttr "g" (mconcat
-            [ "transform" =: svgRotate (360.0 * normal start) (Just (oR, oR))
-            , "data-instance-name" =: instName
+    mkStyle :: MonadWidget t m => m ()
+    mkStyle = do
+        sequence_ $ flip Map.mapWithKey partColors $ \groupName color -> do
+            text $ mconcat
+                [ ".connectome .components [data-group-name=", groupName, "]"
+                , "{"
+                , "stroke: ", color, ";"
+                , "}\n"
+                ]
+        sequence_ $ flip Map.mapWithKey netColors $ \groupName color -> do
+            text $ mconcat
+                [ ".connectome .nets [data-group-name=", groupName, "]"
+                , "{"
+                , "stroke: ", color, ";"
+                , "}\n"
+                ]
+    componentLayer :: MonadWidget t m => PartName -> PartLoc -> m ()
+    componentLayer partName (cInfo, (start, end), groupName) = svgAttr "g" (mconcat
+            [ "transform" =: svgRotate (360.0 * normalize start) (Just (oR, oR))
+            , "data-part-name" =: partName
+            , "data-group-name" =: fromMaybe "" groupName
             ]) $ do
-        let componentRadians = (tau*) . normal $ end - start
+        let componentRadians = (tau*) . normalize $ end - start
         svgAttr "path" (mconcat
             [ "d" =: T.intercalate " "
                 [ svgPathM Abs oR 0.0
@@ -76,15 +94,15 @@ renderValue val@Connectome{..} = do
             ]) blank
         svgClass "g" "pins" $ do
             forM_ (zip [0..] (pins cInfo)) $ \(fromIntegral -> pinNo, pinName) -> do
-                let pinDegrees = (360.0*) . normal $ pinNo + 0.5
+                let pinDegrees = (360.0*) . normalize $ pinNo + 0.5
                 svgAttr "line" (mconcat
                     [ "x1" =: tshow oR, "x2" =: tshow oR
                     , "y1" =: "0" , "y2" =: tshow pinLength
                     , "transform" =: svgRotate pinDegrees (Just (oR, oR))
                     ]) $ blank
-    netLayer :: MonadWidget t m => (NetName, [SegmentNo]) -> m ()
-    netLayer (netName, connects) = do
-        let toCoords = negate . (tau*) . normal . (+0.5)
+    netLayer :: MonadWidget t m => NetName -> NetLoc -> m ()
+    netLayer netName (connects, groupName) = do
+        let toCoords = negate . (tau*) . normalize . (+0.5)
             points = connects <&> \(toCoords -> loc) ->
                 let x = iR * negate (sin loc)
                     y = iR * negate (cos loc)
@@ -92,7 +110,9 @@ renderValue val@Connectome{..} = do
         svgAttr "polygon" (mconcat 
             [ "points" =: T.intercalate " " points
             , "data-net-name" =: netName
+            , "data-group-name" =: fromMaybe "" groupName
             ]) blank
+    normalize = normal c
 
 
 svgTranslate :: Double -> Double -> Text
