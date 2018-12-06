@@ -35,11 +35,17 @@ default-extensions:
 - RecordWildCards
 - TupleSections
 - LambdaCase
+- FlexibleInstances
 - FlexibleContexts
 - ScopedTypeVariables
+- GADTs
 - DataKinds
+- KindSignatures
 - TypeOperators
 - TypeApplications
+- TypeFamilies
+- TypeFamilyDependencies
+- MultiParamTypeClasses
 - DuplicateRecordFields
 
 library:

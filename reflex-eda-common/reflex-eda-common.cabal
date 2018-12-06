@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c4d8fac6da5babffd9c3ed94b48e66c2aa64d6170bbbabb4097ab713110277c4
+-- hash: 9becfd618a4ef5fdafa0b8d646234bd07be92ca9c624b3ce7a49df01d8997d35
 
 name:           reflex-eda-common
 version:        0.0.0
@@ -34,7 +34,7 @@ library
       Paths_reflex_eda_common
   hs-source-dirs:
       src
-  default-extensions: OverloadedStrings PatternSynonyms ViewPatterns RecordWildCards TupleSections LambdaCase FlexibleContexts ScopedTypeVariables DataKinds TypeOperators TypeApplications DuplicateRecordFields
+  default-extensions: OverloadedStrings PatternSynonyms ViewPatterns RecordWildCards TupleSections LambdaCase FlexibleInstances FlexibleContexts ScopedTypeVariables GADTs DataKinds KindSignatures TypeOperators TypeApplications TypeFamilies TypeFamilyDependencies MultiParamTypeClasses DuplicateRecordFields
   build-depends:
       base >=4.7 && <5
     , containers
