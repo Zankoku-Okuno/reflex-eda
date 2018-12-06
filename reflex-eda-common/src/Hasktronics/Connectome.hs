@@ -60,7 +60,7 @@ filterConnectome c0 (partGNames, withNoGParts) (netGNames, withNoGNets) =
     subsetKeys ks = MMap.filterWithKey (\k _ -> k `elem` ks)
 
 
-build :: Netlist -> Expr -> These [Text] Connectome
+build :: Netlist -> Prog -> These [Text] Connectome
 build netlist expr = case runWriter $ evalCmds netlist expr of
     (val, []) -> That val
     (val, warns) -> These warns val

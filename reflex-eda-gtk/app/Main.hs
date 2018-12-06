@@ -26,7 +26,7 @@ import Css
 
 import Build
 import Hasktronics
-import Hasktronics.Expr (Expr)
+import Hasktronics.Expr (Prog)
 import qualified Hasktronics.Expr as Expr
 import qualified Gui.Source as Source
 import Hasktronics.Netlist (Netlist)

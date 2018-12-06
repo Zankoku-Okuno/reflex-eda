@@ -11,7 +11,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 
 
-type Expr = [Cmd]
+type Prog = [Cmd]
 
 data Cmd
     = DefComponent
@@ -24,5 +24,5 @@ data Cmd
     | Group Text (Either [NetName] [PartName])
     deriving (Read, Show)
 
-parse :: Text -> These [Text] Expr
+parse :: Text -> These [Text] Prog
 parse (T.unpack -> src) = either2these $ first ((:[]) . T.pack) $ readEither src

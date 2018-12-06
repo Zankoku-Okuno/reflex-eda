@@ -43,7 +43,7 @@ data Netlist = Netlist
     deriving (Show)
 
 
-build :: Expr -> These [Text] (ComponentLibrary, Netlist) -- FIXME report warnings
+build :: Prog -> These [Text] (ComponentLibrary, Netlist) -- FIXME report warnings
 build cmds = case runWriter (evalCmds cmds) of
     (val, []) -> That val
     (val, warns) -> These warns val
