@@ -7,7 +7,7 @@ import qualified Data.Text as T
 type ComponentName = Text
 type PartName = Text
 type NetName = Text
-type PinName = Text
+type PinName = (Text, [Word])
 type PinNo = Int -- one-indexed
 
 type PinId = (ComponentName, PinNo)

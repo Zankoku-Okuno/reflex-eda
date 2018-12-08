@@ -24,21 +24,11 @@ content evGo = do
             , "cols" =: "80"
             ]
         , _textAreaConfig_initialValue = [NI.text|
-[ DefComponent {name = "hi", pins = ["a", "b"]}
-, DefComponent {name = "yo", pins = ["a", "b", "c", "d"]}
-, UseComponent "bon soir 1" "hi"
-, UseComponent "bon soir 2" "hi"
-, UseComponent "bon soir 3" "hi"
-, UseComponent "U1" "yo"
-, UseComponent "U2" "yo"
-, UseComponent "U3" "yo"
-, Connect "pwr" [("bon soir 1", 1), ("bon soir 2", 1), ("bon soir 3", 1)]
-, Connect "daisy" [("bon soir 1", 2), ("bon soir 2", 2)]
-, Connect "pwr" [("bon soir 3", 2)]
-, DefGroup (Right "U") (Just "#3B1")
-, Group "U" (Right ["bon soir 1", "U1", "U2", "U3", "bon soir 2"])
-, DefGroup (Left "Vcc") (Just "#D31")
-, Group "Vcc" (Left ["pwr"])
+[ DefComponent "hi" (DefPins
+    [ DefPin "EN" []
+    , DefPinsRange ("i", 0, 7) (DefPin "D" [NatVar "i"])
+    ])
+, UseComponent "hi1" "hi"
 ]
 |]
         }

@@ -21,8 +21,9 @@ import qualified Data.Text as T
 import Data.Map (Map)
 import qualified Data.Map  as Map
 
-import Control.Monad.State
+import Control.Monad.Reader
 import Control.Monad.Writer
+import Control.Monad.State
 
 
 data ComponentInfo = ComponentInfo
@@ -59,9 +60,12 @@ evalCmds cmds = do
     netlist0 = Netlist Map.empty Map.empty
 
 evalLibCmd :: Cmd -> StateT ComponentLibrary (Writer [Text]) ()
-evalLibCmd (DefComponent{..}) = gets (Map.lookup name) >>= \case
-    Nothing -> modify $ Map.insert name ComponentInfo{..}
+evalLibCmd (DefComponent name pinsExpr) = gets (Map.lookup name) >>= \case
     Just _ -> tell1 $ mconcat ["Component ", tshow name, " already exists: skipping."]
+    Nothing -> do
+        pins <- lift $ runReaderT (evalDefPins pinsExpr) Map.empty
+        -- TODO check no duplicated names
+        modify $ Map.insert name (ComponentInfo name pins)
 evalLibCmd _ = pure ()
 
 evalComponentCmd :: Cmd -> StateT (ComponentLibrary, Netlist) (Writer [Text]) ()
