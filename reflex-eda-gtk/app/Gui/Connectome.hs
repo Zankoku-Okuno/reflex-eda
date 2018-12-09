@@ -2,23 +2,15 @@ module Gui.Connectome where
 
 import Control.Monad.IO.Class -- DEBUG
 
-import Hasktronics.Types
+import Hasktronics.Library
 import Hasktronics.Netlist
 import Hasktronics.Connectome
+
+import Hasktronics.Common
+import Hasktronics.Types
 import Build
-import Util
 
-import Data.Maybe
-import Data.Bimaybe
-import Data.List
-import Data.Bifunctor
-import Data.Monoid
-import Control.Monad
-
-import Data.Text (Text)
 import qualified Data.Text as T
-
-import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Reflex.Dom

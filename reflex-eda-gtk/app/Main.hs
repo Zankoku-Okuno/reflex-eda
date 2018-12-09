@@ -26,9 +26,11 @@ import Css
 
 import Build
 import Hasktronics
-import Hasktronics.Expr (Prog)
+import Hasktronics.Expr (Cmd)
 import qualified Hasktronics.Expr as Expr
 import qualified Gui.Source as Source
+import Hasktronics.Library (Library)
+import qualified Hasktronics.Library as Library
 import Hasktronics.Netlist (Netlist)
 import qualified Hasktronics.Netlist as Netlist
 import qualified Gui.Netlist as Netlist
@@ -75,17 +77,26 @@ htmlBody = elAttr "div" ("id" =: "editor" ) $ do
                 , constDyn $ never <$ Connectome.header -- TODO indicate build status
                 , (never <$) . Connectome.content <$> dynConnectome
                 )
+            , (100, not . null <$> dynErrors
+                , constDyn $ never <$ text "Errors"
+                , (never <$) . text . tshow <$> dynErrors
+                )
             ]
         let (evGo, evSrc) = fromJust $ Map.lookup 0 evFromTabs
-        let evBuild :: Event t (These [Text] (Netlist.ComponentLibrary, Netlist, Connectome))
+        let evBuild :: Event t (These [Text] (Library, Netlist, Connectome))
             evBuild = evSrc <&> \src -> do
-                expr <- Expr.parse src
-                (lib, netlist) <- Netlist.build expr
-                (connectome :: Connectome) <- Connectome.build netlist expr
+                program <- Expr.parse src
+                lib <- Expr.buildLibrary program
+                netlist <- Expr.buildNetlist lib program
+                connectome <- Expr.buildConnectome netlist program
+                -- (lib, netlist) <- Netlist.build expr
+                -- (connectome :: Connectome) <- Connectome.build netlist expr
                 pure (lib, netlist, connectome)
             evLib = second (\(x, _, _) -> x) <$> evBuild
             evNetlist = second (\(_, x, _) -> x) <$> evBuild
             evConnectome = second (\(_, _, x) -> x) <$> evBuild
+            evErrors = fromMaybe [] . maybeThis <$> evBuild
         dynNetlist <- foldDyn pushBuild Neither evNetlist
         dynConnectome <- foldDyn pushBuild Neither evConnectome
+        dynErrors <- holdDyn [] evErrors
     blank

@@ -36,3 +36,11 @@ maybeThat _ = Nothing
 
 tell1 :: MonadWriter [w] m => w -> m ()
 tell1 x = tell [x]
+
+
+safeHead :: [a] -> Maybe a
+safeHead [] = Nothing
+safeHead xs = Just $ head xs
+
+snoc :: [a] -> a -> [a]
+snoc xs x = xs ++ [x]

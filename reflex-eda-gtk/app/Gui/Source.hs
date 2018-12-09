@@ -24,11 +24,23 @@ content evGo = do
             , "cols" =: "80"
             ]
         , _textAreaConfig_initialValue = [NI.text|
-[ DefComponent "hi" (DefPins
-    [ DefPin "EN" []
-    , DefPinsRange ("i", 0, 7) (DefPin "D" [NatVar "i"])
+[ LibCmd (DefComponent "hi" (DefPins
+    [ DefPin "Vcc" []
+    , DefPin "EN" []
+    , DefPinsRange ("i", 1, 8) (DefPin "D" [i])
+    ]))
+, PartCmd (UseComponent "hi1" "hi")
+, PartCmd (UseComponent "hi2" "hi")
+, PartCmd (UseComponent "hi3" "hi")
+, NetCmd (Connect "foo"
+    [ PinByName "hi1" "Vcc" []
+    , PinByName "hi2" "Vcc" []
+    , PinByName "hi3" "Vcc" []
     ])
-, UseComponent "hi1" "hi"
+, NetCmd (ZipConnect "i" (1, 8) "d"
+    [ PinByName "hi1" "D" [i]
+    , PinByName "hi2" "D" [i]
+    ])
 ]
 |]
         }

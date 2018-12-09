@@ -1,62 +1,74 @@
 module Hasktronics.Expr where
 
-import Hasktronics.Types
-import Util
+import Hasktronics.Expr.Base
+import Hasktronics.Library
+import Hasktronics.Netlist
+import Hasktronics.Connectome
 
-import Data.Maybe
-import Data.These
-import Data.Bifunctor
+import Hasktronics.Common
+import Hasktronics.Types
 
 import Text.Read (readEither)
-import Data.Text (Text)
 import qualified Data.Text as T
-
-import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.Map.Monoidal as MMap
 
-import Control.Monad.Reader
-import Control.Monad.Writer
-
-
-type VarName = Text
-
-
-type Prog = [Cmd]
 
 data Cmd
-    = DefComponent ComponentName DefPins
-    | UseComponent PartName ComponentName
-    | Connect NetName [PinId]
-    | DefGroup (Either Text Text) (Maybe Color)
-    | Group Text (Either [NetName] [PartName])
+    = LibCmd LibraryCmd
+    | PartCmd PartCmd
+    | NetCmd NetCmd
+    | DefGroupCmd DefGroupCmd
+    | UseGroupCmd UseGroupCmd
     deriving (Read, Show)
 
-parse :: Text -> These [Text] Prog
+parse :: Text -> These [Text] [Cmd]
 parse (T.unpack -> src) = either2these $ first ((:[]) . T.pack) $ readEither src
 
-data DefPins
-    = DefPin Text [NatExpr]
-    | DefPins [DefPins]
-    | DefPinsRange (VarName, Word, Word) DefPins -- TODO multiple ranges at once
-    deriving(Read, Show)
-evalDefPins :: DefPins -> ReaderT NatEnv (Writer [Text]) [PinName]
-evalDefPins (DefPin base indexExprs) = do
-    indices <- catMaybes <$> evalNatExpr `mapM` indexExprs
-    pure [(base, indices)]
-evalDefPins (DefPinsRange (x, lo, hi) expr) = do
-    let inEnvs = [local (Map.insert x n) | n <- [lo..hi]]
-    namess <- forM inEnvs ($ evalDefPins expr)
-    pure $ concat namess
-evalDefPins (DefPins exprs) = concat <$> evalDefPins `mapM` exprs
+buildLibrary :: [Cmd] -> These [Text] Library
+buildLibrary = build $ \cmds -> do
+    lib <- execStateT (goLibCmd `traverse` cmds) lib0
+    pure $ Just lib
+    where
+    lib0 = Map.empty
+    goLibCmd = \case { LibCmd cmd -> evalLibCmd cmd; _ -> pure () }
 
-data NatExpr
-    = Nat Word
-    | NatVar VarName
-    deriving(Read, Show)
-type NatEnv = Map VarName Word
-evalNatExpr :: NatExpr -> ReaderT NatEnv (Writer [Text]) (Maybe Word)
-evalNatExpr (Nat n) = pure (Just n)
-evalNatExpr (NatVar x) = do
-    n <- asks (Map.lookup x)
-    when (isNothing n) $ tell1 $ mconcat ["Undefined variable: ", tshow x]
-    pure n
+buildNetlist :: Library -> [Cmd] -> These [Text] Netlist
+buildNetlist lib = build $ \cmds -> do
+    parts <- execStateT (runReaderT (goPartCmd `traverse` cmds) lib) netlist0
+    netlist <- execStateT (runReaderT (goNetCmd `traverse` cmds) (lib, Map.empty)) parts
+    pure $ Just netlist
+    where
+    netlist0 = Netlist Map.empty Map.empty
+    goPartCmd = \case { PartCmd cmd -> evalPartCmd cmd; _ -> pure () }
+    goNetCmd = \case { NetCmd cmd -> evalNetCmd cmd; _ -> pure () }
+
+buildConnectome :: Netlist -> [Cmd] -> These [Text] Connectome
+buildConnectome netlist = build $ \cmds -> do
+    ((netGNames, netColors), (partGNames, partColors)) <-
+        execStateT (goDefGroupCmd `traverse` cmds) groupNames0
+    let partGroups0 = (partGNames, MMap.empty, Map.elems $ parts netlist)
+        netGroups0 = (netGNames, MMap.empty, Map.elems $ nets netlist)
+        groups0 = (netGroups0, partGroups0)
+    (netGroups, partGroups) <-
+        execStateT (runReaderT (goUseGroupCmd `traverse` cmds) netlist) groups0
+--     -- FIXME down here, order component locations by group
+    pure $ Just Connectome{..}
+    where
+    groupNames0 = (([], Map.empty), ([], Map.empty))
+    goDefGroupCmd = \case { DefGroupCmd cmd -> evalDefGroupCmd cmd; _ -> pure () }
+    goUseGroupCmd = \case { UseGroupCmd cmd -> evalUseGroupCmd cmd; _ -> pure () }
+
+
+build :: ([Cmd] -> Writer [Text] (Maybe a)) -> [Cmd] -> These [Text] a
+build eval cmds = case runWriter $ eval cmds of
+    (Nothing, errs) -> This errs
+    (Just val, []) -> That val
+    (Just val, warns) -> These warns val
+
+
+-- evalCmds :: [Cmd] -> Writer [Text] (Library, Netlist)
+-- evalCmds cmds = do
+--     lib <- execStateT (goLibCmd `traverse` cmds) lib0
+--     pure (lib, netlist)
+--     where
